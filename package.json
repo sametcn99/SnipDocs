@@ -21,12 +21,16 @@
 			},
 			{
 				"command": "snip-docs.openLink",
-				"title": "Open Documentation Link"
+				"title": "Open on GitHub"
 			},
 			{
 				"command": "snip-docs.refreshDocumentation",
 				"title": "Refresh Documentation",
 				"icon": "$(refresh)"
+			},
+			{
+				"command": "snip-docs.openInternalFile",
+				"title": "Open in Editor"
 			}
 		],
 		"menus": {

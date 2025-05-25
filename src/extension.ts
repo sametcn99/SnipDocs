@@ -73,10 +73,38 @@ export function activate(context: vscode.ExtensionContext) {
 	const documentationDataProvider = new DocumentationDataProvider(context.globalState);
 	vscode.window.registerTreeDataProvider("documentationView", documentationDataProvider);
 
+	// Command to open links externally (GitHub HTML page)
 	const openLinkCommand = vscode.commands.registerCommand("snip-docs.openLink", (url: string) => {
 		vscode.env.openExternal(vscode.Uri.parse(url));
 	});
 	context.subscriptions.push(openLinkCommand);
+
+	// Command to open Markdown files internally in a new VS Code editor
+	const openInternalFileCommand = vscode.commands.registerCommand("snip-docs.openInternalFile", async (rawUrl: string, fileName: string) => {
+		if (!rawUrl) {
+			vscode.window.showErrorMessage("No raw URL available to fetch file content.");
+			return;
+		}
+		try {
+			vscode.window.withProgress({
+				location: vscode.ProgressLocation.Notification,
+				title: `Fetching ${fileName}...`,
+				cancellable: false
+			}, async (progress) => {
+				const content = await fetchMarkdownContent(rawUrl);
+				if (content === null) { // fetchMarkdownContent now returns null on error
+					// Error message is already shown by fetchMarkdownContent
+					return;
+				}
+				const document = await vscode.workspace.openTextDocument({ content, language: "markdown" });
+				await vscode.window.showTextDocument(document, { preview: false });
+			});
+		} catch (error) {
+			console.error("Error opening file internally:", error);
+			vscode.window.showErrorMessage(`Could not open file ${fileName} internally: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	});
+	context.subscriptions.push(openInternalFileCommand);
 
 	const refreshCommand = vscode.commands.registerCommand("snip-docs.refreshDocumentation", () => {
 		documentationDataProvider.refresh();
@@ -101,20 +129,36 @@ interface GitHubContent {
 	url: string; // API URL for this content item
 }
 
+async function fetchMarkdownContent(url: string): Promise<string | null> { // Returns null on error
+	try {
+		console.log(`Fetching Markdown content from: ${url}`);
+		const response = await fetch(url);
+		if (!response.ok) {
+			const errorText = await response.text();
+			console.error(`Failed to fetch ${url}: ${response.statusText} (${response.status}). Body: ${errorText}`);
+			vscode.window.showErrorMessage(`Failed to fetch content from ${url}: ${response.statusText} (${response.status})`);
+			return null;
+		}
+		return await response.text();
+	} catch (error) {
+		console.error("Error fetching markdown content:", error);
+		vscode.window.showErrorMessage(`Error fetching content: ${error instanceof Error ? error.message : String(error)}`);
+		return null;
+	}
+}
+
 async function fetchGitHubContents(apiUrl: string): Promise<GitHubContent[]> {
 	try {
 		console.log(`Fetching GitHub contents from: ${apiUrl}`);
-		const response = await fetch(apiUrl, { headers: { Accept: "application/vnd.github.v3+json" } });
+		const response = await fetch(apiUrl, { headers: { "Accept": "application/vnd.github.v3+json" } });
 		if (!response.ok) {
 			throw new Error(`Failed to fetch ${apiUrl}: ${response.statusText} (${response.status})`);
 		}
 		const data = await response.json();
-		return Array.isArray(data) ? (data as GitHubContent[]) : [];
+		return Array.isArray(data) ? data as GitHubContent[] : [];
 	} catch (error) {
 		console.error("Error fetching GitHub contents:", error);
-		vscode.window.showErrorMessage(
-			`Error fetching GitHub contents: ${error instanceof Error ? error.message : String(error)}`
-		);
+		vscode.window.showErrorMessage(`Error fetching GitHub contents: ${error instanceof Error ? error.message : String(error)}`);
 		return [];
 	}
 }
@@ -156,9 +200,7 @@ class DocumentationDataProvider implements vscode.TreeDataProvider<Documentation
 			if (parentLink.type === "repo" && !apiContentsUrl) {
 				const repoInfo = parseGitHubRepoUrl(parentLink.url);
 				if (repoInfo) {
-					apiContentsUrl = `https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/contents/${
-						parentLink.docPath || ""
-					}`;
+					apiContentsUrl = `https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/contents/${parentLink.docPath || ""}`;
 				} else {
 					vscode.window.showErrorMessage(`Invalid GitHub repo URL: ${parentLink.url}`);
 					return [];
@@ -192,7 +234,6 @@ class DocumentationDataProvider implements vscode.TreeDataProvider<Documentation
 	}
 
 	refresh(): void {
-		// Potentially clear cache here if implementing caching
 		this._onDidChangeTreeData.fire();
 	}
 }
@@ -200,19 +241,28 @@ class DocumentationDataProvider implements vscode.TreeDataProvider<Documentation
 class DocumentationTreeItem extends vscode.TreeItem {
 	constructor(
 		public readonly docLink: DocumentationLink,
-		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-		public readonly command?: vscode.Command
+		public readonly collapsibleState: vscode.TreeItemCollapsibleState
+		// command is now set dynamically below, so removed from constructor params
 	) {
 		super(docLink.name, collapsibleState);
 		this.id = docLink.id;
 		this.tooltip = `${this.docLink.name} (${this.docLink.type}) - ${this.docLink.url}`;
 		this.description = this.docLink.pathInRepo;
 
-		this.command = {
-			command: "snip-docs.openLink",
-			title: "Open on GitHub",
-			arguments: [this.docLink.url],
-		};
+		// Dynamically set the command based on the item type
+		if (docLink.type === "file" && docLink.name.endsWith(".md") && docLink.rawUrl) {
+			this.command = {
+				command: "snip-docs.openInternalFile",
+				title: "Open in Editor",
+				arguments: [docLink.rawUrl, docLink.name],
+			};
+		} else {
+			this.command = {
+				command: "snip-docs.openLink",
+				title: "Open on GitHub",
+				arguments: [docLink.url],
+			};
+		}
 
 		switch (docLink.type) {
 			case "repo":
@@ -223,13 +273,12 @@ class DocumentationTreeItem extends vscode.TreeItem {
 				break;
 			case "file":
 				this.iconPath = vscode.ThemeIcon.File;
-				// Could check for markdown extension and use a different icon
 				if (docLink.name.endsWith(".md")) {
 					this.iconPath = new vscode.ThemeIcon("markdown");
 				}
 				break;
 			case "heading":
-				// this.iconPath = new vscode.ThemeIcon("symbol-namespace"); // Or similar
+				// this.iconPath = new vscode.ThemeIcon("symbol-namespace");
 				break;
 		}
 	}
