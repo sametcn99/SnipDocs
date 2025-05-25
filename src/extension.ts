@@ -2,6 +2,8 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
 import fetch from "node-fetch"; // For making HTTP requests
+import * as path from "path"; // For path operations
+import * as crypto from "crypto"; // For generating cache keys
 
 // Define an interface for our documentation links
 interface DocumentationLink {
@@ -63,12 +65,57 @@ const popularDocumentationLinks: DocumentationLink[] = [
 	},
 ];
 
+// Helper function to generate a safe cache key from a URL
+function getCacheKey(url: string): string {
+	return crypto.createHash("md5").update(url).digest("hex") + ".md";
+}
+
+// Helper function to get the URI for a cache file
+function getCacheFileUri(storageUri: vscode.Uri, rawUrl: string): vscode.Uri {
+	const cacheKey = getCacheKey(rawUrl);
+	return vscode.Uri.joinPath(storageUri, cacheKey);
+}
+
+async function readFromCache(storageUri: vscode.Uri, rawUrl: string): Promise<string | null> {
+	const cacheFileUri = getCacheFileUri(storageUri, rawUrl);
+	try {
+		const contentBytes = await vscode.workspace.fs.readFile(cacheFileUri);
+		return new TextDecoder().decode(contentBytes);
+	} catch (error) {
+		if (error instanceof vscode.FileSystemError && error.code === "FileNotFound") {
+			return null; // Cache miss
+		}
+		console.error(`Error reading from cache ${cacheFileUri.fsPath}:`, error);
+		return null; // Other error
+	}
+}
+
+async function writeToCache(storageUri: vscode.Uri, rawUrl: string, content: string): Promise<void> {
+	const cacheFileUri = getCacheFileUri(storageUri, rawUrl);
+	try {
+		await vscode.workspace.fs.writeFile(cacheFileUri, new TextEncoder().encode(content));
+		console.log(`Cached content for ${rawUrl} to ${cacheFileUri.fsPath}`);
+	} catch (error) {
+		console.error(`Error writing to cache ${cacheFileUri.fsPath}:`, error);
+		vscode.window.showErrorMessage(`Failed to cache file: ${error instanceof Error ? error.message : String(error)}`);
+	}
+}
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "snip-docs" is now active!');
+
+	// Ensure the global storage path exists
+	try {
+		await vscode.workspace.fs.createDirectory(context.globalStorageUri);
+		console.log(`Global storage directory ensured: ${context.globalStorageUri.fsPath}`);
+	} catch (error) {
+		console.error("Failed to create global storage directory:", error);
+		// Continue without caching if directory creation fails, or handle more gracefully
+	}
 
 	const documentationDataProvider = new DocumentationDataProvider(context.globalState);
 	vscode.window.registerTreeDataProvider("documentationView", documentationDataProvider);
@@ -86,18 +133,31 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 		try {
-			vscode.window.withProgress({
+			await vscode.window.withProgress({
 				location: vscode.ProgressLocation.Notification,
-				title: `Fetching ${fileName}...`,
+				title: `Opening ${fileName}...`,
 				cancellable: false
 			}, async (progress) => {
-				const content = await fetchMarkdownContent(rawUrl);
-				if (content === null) { // fetchMarkdownContent now returns null on error
-					// Error message is already shown by fetchMarkdownContent
-					return;
+				progress.report({ message: "Checking cache..." });
+				let content = await readFromCache(context.globalStorageUri, rawUrl);
+				let source = "cache";
+
+				if (content === null) {
+					progress.report({ message: `Fetching from network...` });
+					source = "network";
+					content = await fetchMarkdownContent(rawUrl);
+					if (content !== null) {
+						await writeToCache(context.globalStorageUri, rawUrl, content);
+					} else {
+						// Error message already shown by fetchMarkdownContent
+						return;
+					}
 				}
+
+				progress.report({ message: "Opening document..." });
 				const document = await vscode.workspace.openTextDocument({ content, language: "markdown" });
 				await vscode.window.showTextDocument(document, { preview: false });
+				vscode.window.showInformationMessage(`Opened ${fileName} from ${source}.`);
 			});
 		} catch (error) {
 			console.error("Error opening file internally:", error);
