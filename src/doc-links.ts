@@ -1,0 +1,417 @@
+export interface DocumentationLink {
+	name: string;
+	id: string; // Unique ID for the tree item
+	type: "repo" | "folder" | "file" | "heading" | "category"; // Added "category" type
+	url?: string; // HTML URL on GitHub, optional for category
+	pathInRepo?: string; // Path of the file/folder within its repository
+	docPath?: string; // For 'repo' type: the sub-path containing docs (e.g., "docs", "" for root)
+	rawUrl?: string; // URL to the raw markdown content (for files)
+	apiContentsUrl?: string; // GitHub API URL to fetch contents (for repos/folders)
+	level?: number; // Heading level
+	category?: string; // To group documentation links
+	children?: DocumentationLink[]; // For categories
+}
+
+// Predefined list of popular documentation repositories, now with categories
+export const popularDocumentationLinks: DocumentationLink[] = [
+	{
+		name: "Frontend Frameworks",
+		id: "frontend-frameworks-category",
+		type: "category",
+		children: [
+			{
+				name: "Angular Docs",
+				id: "angular-docs-repo",
+				type: "repo",
+				url: "https://github.com/angular/angular",
+				docPath: "adev/src/content",
+				category: "Frontend Frameworks",
+			},
+			{
+				name: "Vue.js Docs",
+				id: "vuejs-docs-repo",
+				type: "repo",
+				url: "https://github.com/vuejs/docs",
+				docPath: "src",
+				category: "Frontend Frameworks",
+			},
+			{
+				name: "Svelte Docs",
+				id: "svelte-docs-repo",
+				type: "repo",
+				url: "https://github.com/sveltejs/svelte",
+				docPath: "documentation/docs",
+				category: "Frontend Frameworks",
+			},
+			{
+				name: "Ember.js Guides",
+				id: "emberjs-guides-repo",
+				type: "repo",
+				url: "https://github.com/ember-learn/guides-source",
+				docPath: "guides",
+				category: "Frontend Frameworks",
+			},
+		],
+	},
+	{
+		name: "JavaScript Ecosystem",
+		id: "javascript-ecosystem-category",
+		type: "category",
+		children: [
+			{
+				name: "Node.js Docs",
+				id: "nodejs-docs-repo",
+				type: "repo",
+				url: "https://github.com/nodejs/node",
+				docPath: "doc",
+				category: "JavaScript Ecosystem",
+			},
+			{
+				name: "TypeScript Handbook",
+				id: "typescript-handbook-repo",
+				type: "repo",
+				url: "https://github.com/microsoft/TypeScript-Handbook",
+				docPath: "pages",
+				category: "JavaScript Ecosystem",
+			},
+			{
+				name: "MDN Web Docs (JS)",
+				id: "mdn-js-docs",
+				type: "repo",
+				url: "https://github.com/mdn/content",
+				docPath: "files/en-us/web/javascript",
+				category: "JavaScript Ecosystem",
+			},
+			{
+				name: "jQuery API Docs",
+				id: "jquery-api-docs",
+				type: "repo",
+				url: "https://github.com/jquery/api.jquery.com",
+				docPath: "entries",
+				category: "JavaScript Ecosystem",
+			},
+			{
+				name: "Lodash Docs",
+				id: "lodash-docs-repo",
+				type: "repo",
+				url: "https://github.com/lodash/lodash",
+				docPath: "doc",
+				category: "JavaScript Ecosystem",
+			},
+		],
+	},
+	{
+		name: "Python Ecosystem",
+		id: "python-ecosystem-category",
+		type: "category",
+		children: [
+			{
+				name: "Python Docs",
+				id: "python-docs-repo",
+				type: "repo",
+				url: "https://github.com/python/cpython",
+				docPath: "Doc",
+				category: "Python Ecosystem",
+			},
+			{
+				name: "Django Docs",
+				id: "django-docs-repo",
+				type: "repo",
+				url: "https://github.com/django/django",
+				docPath: "docs",
+				category: "Python Ecosystem",
+			},
+			{
+				name: "Flask Docs",
+				id: "flask-docs-repo",
+				type: "repo",
+				url: "https://github.com/pallets/flask",
+				docPath: "docs",
+				category: "Python Ecosystem",
+			},
+			{
+				name: "NumPy Docs",
+				id: "numpy-docs-repo",
+				type: "repo",
+				url: "https://github.com/numpy/numpy",
+				docPath: "doc/source",
+				category: "Python Ecosystem",
+			},
+			{
+				name: "Pandas Docs",
+				id: "pandas-docs-repo",
+				type: "repo",
+				url: "https://github.com/pandas-dev/pandas",
+				docPath: "doc/source",
+				category: "Python Ecosystem",
+			},
+		],
+	},
+	{
+		name: "VS Code Development",
+		id: "vscode-dev-category",
+		type: "category",
+		children: [
+			{
+				name: "VS Code Docs",
+				id: "vscode-docs-repo",
+				type: "repo",
+				url: "https://github.com/microsoft/vscode-docs",
+				docPath: "",
+				category: "VS Code Development",
+			},
+			// Example of linking to a specific file, though our current setup might treat it as a repo/folder to list
+			{
+				name: "VS Code API (vscode.d.ts)",
+				id: "vscode-api-dts",
+				type: "file",
+				url: "https://github.com/microsoft/vscode/blob/main/src/vs/vscode.d.ts",
+				rawUrl: "https://raw.githubusercontent.com/microsoft/vscode/main/src/vs/vscode.d.ts",
+				category: "VS Code Development",
+				pathInRepo: "src/vs/vscode.d.ts",
+			},
+		],
+	},
+	{
+		name: "Cloud Platforms",
+		id: "cloud-platforms-category",
+		type: "category",
+		children: [
+			{
+				name: "AWS Documentation Examples",
+				id: "aws-docs-examples-repo",
+				type: "repo",
+				url: "https://github.com/awsdocs/aws-doc-sdk-examples",
+				docPath: "",
+				category: "Cloud Platforms",
+			},
+			{
+				name: "Azure Documentation",
+				id: "azure-docs-repo",
+				type: "repo",
+				url: "https://github.com/MicrosoftDocs/azure-docs",
+				docPath: "articles",
+				category: "Cloud Platforms",
+			},
+			{
+				name: "Google Cloud Community Tutorials",
+				id: "gcp-community-repo",
+				type: "repo",
+				url: "https://github.com/GoogleCloudPlatform/community",
+				docPath: "tutorials",
+				category: "Cloud Platforms",
+			},
+		],
+	},
+	{
+		name: "Databases",
+		id: "databases-category",
+		type: "category",
+		children: [
+			{
+				name: "PostgreSQL Docs",
+				id: "postgres-docs-repo",
+				type: "repo",
+				url: "https://github.com/postgres/postgres",
+				docPath: "doc/src/sgml",
+				category: "Databases",
+			},
+			{
+				name: "MySQL Docs",
+				id: "mysql-docs-repo",
+				type: "repo",
+				url: "https://github.com/mysql/mysql-server",
+				docPath: "docs/refman/8.0/en",
+				category: "Databases",
+			},
+			{
+				name: "MongoDB Docs",
+				id: "mongodb-docs-repo",
+				type: "repo",
+				url: "https://github.com/mongodb/docs",
+				docPath: "",
+				category: "Databases",
+			},
+			{
+				name: "Redis Docs",
+				id: "redis-docs-repo",
+				type: "repo",
+				url: "https://github.com/redis/redis-doc",
+				docPath: "",
+				category: "Databases",
+			},
+		],
+	},
+	{
+		name: "DevOps & Tools",
+		id: "devops-tools-category",
+		type: "category",
+		children: [
+			{
+				name: "Docker Docs",
+				id: "docker-docs-repo",
+				type: "repo",
+				url: "https://github.com/docker/docs",
+				docPath: "content",
+				category: "DevOps & Tools",
+			},
+			{
+				name: "Kubernetes Docs",
+				id: "kubernetes-docs-repo",
+				type: "repo",
+				url: "https://github.com/kubernetes/website",
+				docPath: "content/en/docs",
+				category: "DevOps & Tools",
+			},
+			{
+				name: "Git Docs (Pro Git book)",
+				id: "git-docs-progit",
+				type: "repo",
+				url: "https://github.com/progit/progit2",
+				docPath: "book",
+				category: "DevOps & Tools",
+			},
+			{
+				name: "Terraform Docs",
+				id: "terraform-docs-repo",
+				type: "repo",
+				url: "https://github.com/hashicorp/terraform-website",
+				docPath: "content/docs",
+				category: "DevOps & Tools",
+			},
+			{
+				name: "Ansible Docs",
+				id: "ansible-docs-repo",
+				type: "repo",
+				url: "https://github.com/ansible/ansible",
+				docPath: "docs/docsite",
+				category: "DevOps & Tools",
+			},
+		],
+	},
+	{
+		name: "Mobile Development",
+		id: "mobile-dev-category",
+		type: "category",
+		children: [
+			{
+				name: "React Native Docs",
+				id: "react-native-docs-repo",
+				type: "repo",
+				url: "https://github.com/facebook/react-native-website",
+				docPath: "docs",
+				category: "Mobile Development",
+			},
+			{
+				name: "Flutter Docs",
+				id: "flutter-docs-repo",
+				type: "repo",
+				url: "https://github.com/flutter/website",
+				docPath: "src/docs",
+				category: "Mobile Development",
+			},
+			{
+				name: "Android Developer Samples",
+				id: "android-dev-samples",
+				type: "repo",
+				url: "https://github.com/android/documentation-samples",
+				docPath: "",
+				category: "Mobile Development",
+			},
+			{
+				name: "Swift Book (Apple)",
+				id: "swift-book-apple",
+				type: "repo",
+				url: "https://github.com/apple/swift-book",
+				docPath: "content",
+				category: "Mobile Development",
+			},
+			{
+				name: "Kotlin Docs",
+				id: "kotlin-docs-repo",
+				type: "repo",
+				url: "https://github.com/JetBrains/kotlin-web-site",
+				docPath: "docs/topics",
+				category: "Mobile Development",
+			},
+		],
+	},
+	{
+		name: "Programming Languages (General)",
+		id: "prog-lang-general-category",
+		type: "category",
+		children: [
+			{
+				name: "Java SE Documentation (OpenJDK)",
+				id: "java-se-docs-openjdk",
+				type: "repo",
+				url: "https://github.com/openjdk/jdk",
+				docPath: "doc/api",
+				category: "Programming Languages (General)",
+			}, // Note: This is complex, linking to API dir
+			{
+				name: "C# Language Specification",
+				id: "csharp-lang-spec",
+				type: "repo",
+				url: "https://github.com/dotnet/csharplang",
+				docPath: "spec",
+				category: "Programming Languages (General)",
+			},
+			{
+				name: "Go Documentation",
+				id: "go-docs-repo",
+				type: "repo",
+				url: "https://github.com/golang/go",
+				docPath: "doc",
+				category: "Programming Languages (General)",
+			},
+			{
+				name: "Rust Programming Language Book",
+				id: "rust-book-repo",
+				type: "repo",
+				url: "https://github.com/rust-lang/book",
+				docPath: "src",
+				category: "Programming Languages (General)",
+			},
+			{
+				name: "PHP Manual (Source)",
+				id: "php-manual-src",
+				type: "repo",
+				url: "https://github.com/php/doc-en",
+				docPath: "reference",
+				category: "Programming Languages (General)",
+			},
+		],
+	},
+	{
+		name: "Web Standards & APIs",
+		id: "web-standards-category",
+		type: "category",
+		children: [
+			{
+				name: "MDN Web Docs (General)",
+				id: "mdn-web-docs-general",
+				type: "repo",
+				url: "https://github.com/mdn/content",
+				docPath: "files/en-us/web",
+				category: "Web Standards & APIs",
+			},
+			{
+				name: "W3C Specifications",
+				id: "w3c-specs-repo",
+				type: "repo",
+				url: "https://github.com/w3c/spec-generator",
+				docPath: "examples",
+				category: "Web Standards & APIs",
+			}, // Example, actual specs are diverse
+			{
+				name: "WHATWG Standards",
+				id: "whatwg-standards-repo",
+				type: "repo",
+				url: "https://github.com/whatwg/html",
+				docPath: "source",
+				category: "Web Standards & APIs",
+			}, // HTML standard
+		],
+	},
+];
