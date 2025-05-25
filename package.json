@@ -22,8 +22,22 @@
 			{
 				"command": "snip-docs.openLink",
 				"title": "Open Documentation Link"
+			},
+			{
+				"command": "snip-docs.refreshDocumentation",
+				"title": "Refresh Documentation",
+				"icon": "$(refresh)"
 			}
 		],
+		"menus": {
+			"view/title": [
+				{
+					"command": "snip-docs.refreshDocumentation",
+					"when": "view == documentationView",
+					"group": "navigation"
+				}
+			]
+		},
 		"viewsContainers": {
 			"activitybar": [
 				{
@@ -36,9 +50,9 @@
 		"views": {
 			"documentation-explorer": [
 				{
-          "icon": "$(book)",
 					"id": "documentationView",
-					"name": "Documentation Links"
+					"name": "Documentation Links",
+					"icon": "$(book)"
 				}
 			]
 		}
